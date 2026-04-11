@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PrimerScore</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent:    #1f4e79;
+      --accent-lt: #2e6faa;
+      --accent-bg: #eaf2fb;
+      --border:    #d0d7de;
+      --bg:        #f6f8fa;
+      --white:     #ffffff;
+      --text:      #1a1a2e;
+      --muted:     #57606a;
+      --warn:      #9a6700;
+      --warn-bg:   #fff8c5;
+      --ok:        #1a7f37;
+      --ok-bg:     #dafbe1;
+      --error:     #cf222e;
+      --error-bg:  #ffebe9;
+      --mono:      'Consolas', 'Menlo', 'Monaco', monospace;
+      --radius:    6px;
+      --shadow:    0 1px 4px rgba(0,0,0,.10);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    #header {
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow);
+    }
+    #header h1 { font-size: 22px; font-weight: 700; color: var(--accent); }
+    #header p  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    #status-badge {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 20px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      transition: all .25s;
+      white-space: nowrap;
+    }
+    #status-badge.running { background: var(--accent-bg); border-color: var(--accent-lt); color: var(--accent); }
+    #status-badge.finished { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+    #status-badge.failed   { background: var(--error-bg); border-color: var(--error); color: var(--error); }
+
+    /* ── Main ── */
+    #main { max-width: 1440px; margin: 0 auto; padding: 16px 20px 40px; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--muted);
+      padding: 10px 14px 0;
+    }
+    .card-body { padding: 12px 14px 14px; }
+
+    /* ── Top panels ── */
+    #top-panels {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 900px) { #top-panels { grid-template-columns: 1fr; } }
+
+    /* Sequence input */
+    #seq-hint { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    #seq-input {
+      width: 100%;
+      height: 200px;
+      resize: vertical;
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      outline: none;
+      transition: border-color .15s;
+    }
+    #seq-input:focus { border-color: var(--accent-lt); background: var(--white); }
+
+    /* Settings panel */
+    #settings-card { display: flex; flex-direction: column; }
+    .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+    .field label { font-size: 12px; font-weight: 600; color: var(--muted); }
+    .field input[type="text"], .field input[type="number"] {
+      width: 100%;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 13px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .field input:focus { border-color: var(--accent-lt); }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      cursor: pointer;
+    }
+    .checkbox-row input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+    .checkbox-row span { font-size: 13px; }
+
+    hr.divider { border: none; border-top: 1px solid var(--border); margin: 10px 0 14px; }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: var(--radius);
+      border: 1px solid transparent;
+      cursor: pointer;
+      text-align: center;
+      transition: all .15s;
+      margin-bottom: 8px;
+    }
+    .btn:last-child { margin-bottom: 0; }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-lt); }
+    .btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+    .btn-secondary {
+      background: var(--white);
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .btn-secondary:hover { background: var(--bg); }
+
+    .tip-text {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+
+    /* ── Log panel ── */
+    #log-output {
+      font-family: var(--mono);
+      font-size: 12px;
+      height: 160px;
+      overflow-y: auto;
+      background: #0d1117;
+      color: #c9d1d9;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      border: 1px solid #30363d;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    #log-output .log-info  { color: #79c0ff; }
+    #log-output .log-warn  { color: #e3b341; }
+    #log-output .log-error { color: #ff7b72; }
+
+    /* ── Results ── */
+    #result-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    #result-hint { font-size: 12px; color: var(--muted); }
+    #export-group { display: flex; gap: 8px; }
+    .btn-sm {
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--white);
+      color: var(--text);
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .btn-sm:hover:not(:disabled) { background: var(--bg); }
+    .btn-sm:disabled { opacity: .45; cursor: not-allowed; }
+
+    #table-wrapper { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead th {
+      background: var(--bg);
+      border-bottom: 2px solid var(--border);
+      padding: 8px 10px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+    }
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background .1s;
+    }
+    tbody tr:hover { background: var(--accent-bg); }
+    tbody td { padding: 8px 10px; vertical-align: middle; }
+    td.rank   { font-weight: 700; color: var(--accent); text-align: center; }
+    td.seq    { font-family: var(--mono); font-size: 12px; color: #0550ae; white-space: nowrap; }
+    td.score  { font-weight: 600; }
+    td.label-warn { color: var(--warn); }
+    td.label-ok   { color: var(--ok); }
+    td.warnings   { max-width: 260px; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    #empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--muted);
+    }
+    #empty-state svg { margin-bottom: 12px; opacity: .35; }
+    #empty-state p { font-size: 13px; }
+
+    /* ── Modal ── */
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+    }
+    #modal-overlay.open { display: flex; }
+    #modal {
+      background: var(--white);
+      border-radius: 8px;
+      width: min(1080px, 96vw);
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 8px 32px rgba(0,0,0,.25);
+    }
+    #modal-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #modal-header h2 { font-size: 15px; font-weight: 600; }
+    #modal-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: var(--muted);
+      line-height: 1;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    #modal-close:hover { background: var(--bg); }
+    #modal-body {
+      overflow-y: auto;
+      padding: 16px 18px;
+      flex: 1;
+    }
+    .detail-section {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+    .detail-section-title {
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      color: var(--muted);
+    }
+    .detail-section-body { padding: 12px 14px; }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 6px 12px;
+      align-items: start;
+    }
+    .detail-grid dt { font-weight: 600; font-size: 12px; color: var(--muted); padding-top: 2px; }
+    .detail-grid dd { font-size: 13px; }
+    .seq-row { display: flex; align-items: center; gap: 8px; }
+    .seq-val {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 4px 8px;
+      flex: 1;
+      word-break: break-all;
+      color: #0550ae;
+    }
+    .copy-btn {
+      flex-shrink: 0;
+      padding: 4px 10px;
+      font-size: 11px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--white);
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .copy-btn:hover { background: var(--bg); }
+    .copy-btn.copied { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+    #json-viewer {
+      font-family: var(--mono);
+      font-size: 11px;
+      background: #0d1117;
+      color: #c9d1d9;
+      padding: 12px;
+      border-radius: var(--radius);
+      overflow: auto;
+      max-height: 260px;
+      white-space: pre;
+      line-height: 1.5;
+    }
+    .copy-json-btn {
+      font-size: 11px;
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--white);
+      cursor: pointer;
+      float: right;
+      margin-bottom: 6px;
+    }
+    .copy-json-btn:hover { background: var(--bg); }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header id="header">
+  <div>
+    <h1>PrimerScore</h1>
+    <p>PCR primer design with BLAST, expression-aware evaluation and scoring</p>
+  </div>
+  <span id="status-badge">Ready</span>
+</header>
+
+<!-- ── Main ── -->
+<main id="main">
+
+  <!-- Top panels -->
+  <div id="top-panels">
+
+    <!-- Sequence input -->
+    <div class="card">
+      <div class="card-title">Target Sequence</div>
+      <div class="card-body">
+        <p id="seq-hint">Paste raw DNA sequence or FASTA. Non-ACGT characters will be removed automatically.</p>
+        <textarea id="seq-input" spellcheck="false" placeholder=">sequence_name&#10;ATGGAAGGATCATCAGGT..."></textarea>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="card" id="settings-card">
+      <div class="card-title">Run Settings</div>
+      <div class="card-body">
+
+        <div class="field">
+          <label for="organism">Organism</label>
+          <input type="text" id="organism" value="Glycine max" />
+        </div>
+
+        <div class="field">
+          <label for="top-n">Top N</label>
+          <input type="number" id="top-n" value="10" min="1" max="100" />
+        </div>
+
+        <label class="checkbox-row">
+          <input type="checkbox" id="dummy-mode" checked />
+          <span>Use dummy BLAST mode</span>
+        </label>
+
+        <hr class="divider" />
+
+        <button class="btn btn-primary" id="run-btn" onclick="onRun()">Run PrimerScore</button>
+        <button class="btn btn-secondary" onclick="onLoadDemo()">Load Demo</button>
+        <button class="btn btn-secondary" onclick="onClear()">Clear</button>
+
+        <p class="tip-text">Tip: first test with dummy mode.<br>Uncheck it for a real BLAST run (requires internet).</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log output -->
+  <div class="card">
+    <div class="card-title">Log Output</div>
+    <div class="card-body">
+      <div id="log-output"></div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="card">
+    <div class="card-title">Combined Ranking Results</div>
+    <div class="card-body">
+
+      <div id="result-bar">
+        <span id="result-hint">No results yet.</span>
+        <div id="export-group">
+          <button class="btn-sm" id="export-json-btn" disabled onclick="onExportJSON()">Export JSON</button>
+          <button class="btn-sm" id="export-csv-btn"  disabled onclick="onExportCSV()">Export CSV</button>
+        </div>
+      </div>
+
+      <div id="table-wrapper">
+        <table id="result-table">
+          <thead>
+            <tr>
+              <th>rank</th>
+              <th>pair_index</th>
+              <th>forward</th>
+              <th>reverse</th>
+              <th>product_size</th>
+              <th>source</th>
+              <th>score</th>
+              <th>label</th>
+              <th>warnings</th>
+            </tr>
+          </thead>
+          <tbody id="result-tbody">
+            <tr><td colspan="9">
+              <div id="empty-state">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+                </svg>
+                <p>Run PrimerScore to see results here.<br>Tip: use Load Demo to test the interface.</p>
+              </div>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+</main>
+
+<!-- ── Detail Modal ── -->
+<div id="modal-overlay" onclick="closeModal(event)">
+  <div id="modal">
+    <div id="modal-header">
+      <h2 id="modal-title">Pair Detail</h2>
+      <button id="modal-close" onclick="closeModalDirect()">&#x2715;</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
+const DEMO_SEQUENCE = `>demo_sequence
+ATGGAAGGATCATCAGGTGTAAGGAAAGGCGCATGGAGTCAAATTGAAGATAACCTTCTCAGAGATTGCGTGAACCTTCATGGGGAAGGAAAATGGCACCTTGTTCCTAAAAGAGCAGGTTG
+AACAGATGCCGCAAGAGTTGTAGATTGAGATGGTTGAACTATTAAACCAAATATCAAGCGGGGGAGATTTTAGTGAAGATGAGGTTGATTTGATGATCAGATTGCACAAGCTTTTGGGAAAC
+AGATGGTCCCTAATTGCAGGGAGACTTCCAGGAAGAACTTCAAACGATGTGAAGAATTACTGGAACACCTACATGCGCCGTAAAGTACACTCTCACAAGAAAGACAACAATAGAGAAGCAA
+GCTGATGAGGCCAAATAGTGAAACATCACGAAGTTATAAAACCTGTTCCTCGAACTCTATCAAAAACATCTCCATGGTTGCAAGGGAAATTTGTTAATAGTTCCAAAGTTGGTGTTAGTGAG
+GAAGAAGTGCAACTTCAATATCAGGGTCTGCTGGGAATTGGTGGGAAACTTTGTTAGATGACAAAGAAGACAATGCAGTTAATAACAACAACACGTGCTTCTTTGGTGGGGCAGATGGAGAG
+TTTAACCTTTGGAGTGAAGAGCTTACTTCAATTGATTGTGATTTTGTTACACAAGGTGAATCTTGGAGTGATTTTCTTCTGACCTACAAGGCTAG`;
+
+const MOCK_RESULT = {
+  rankings: { combined_ranking: [
+    { pair_index:0,  combined_score:26.6430, source:"pod", recommendation_label:"warning", warnings:["pod: target expression is low.","dummy BLAST: off-target not evaluated"] },
+    { pair_index:2,  combined_score:26.6430, source:"pod", recommendation_label:"warning", warnings:["pod: target expression is low.","dummy BLAST: off-target not evaluated"] },
+    { pair_index:3,  combined_score:25.1200, source:"leaf", recommendation_label:"warning", warnings:["leaf: expression moderate"] },
+    { pair_index:6,  combined_score:24.8800, source:"root", recommendation_label:"ok",      warnings:[] },
+    { pair_index:10, combined_score:23.4100, source:"seed", recommendation_label:"ok",      warnings:[] },
+    { pair_index:14, combined_score:22.9700, source:"stem", recommendation_label:"warning", warnings:["stem: low expression"] },
+    { pair_index:17, combined_score:21.5500, source:"pod",  recommendation_label:"warning", warnings:["pod: target expression is low."] },
+    { pair_index:20, combined_score:20.1000, source:"leaf", recommendation_label:"ok",      warnings:[] },
+    { pair_index:23, combined_score:19.4400, source:"root", recommendation_label:"ok",      warnings:[] },
+    { pair_index:27, combined_score:18.2200, source:"seed", recommendation_label:"warning", warnings:["seed: expression below threshold"] },
+  ]},
+  pairs: [
+    { pair_index:0,  forward:{sequence:"ATGGAAGGATCATCAGGT"},   reverse:{sequence:"CTAGCCTTGTAGGTCAAG"},   product_size:711, tm_diff:0.8, heterodimer_dG:-4.2 },
+    { pair_index:2,  forward:{sequence:"ATGGAAGGATCATCAGGT"},   reverse:{sequence:"CTAGCCTTGTAGGTCAAG"},   product_size:711, tm_diff:0.8, heterodimer_dG:-4.2 },
+    { pair_index:3,  forward:{sequence:"ATGGAAGGATCATCAGGTG"},  reverse:{sequence:"CTAGCCTTGTAGGTCAAGA"},  product_size:711, tm_diff:1.2, heterodimer_dG:-3.8 },
+    { pair_index:6,  forward:{sequence:"ATGGAAGGATCATCAGGTA"},  reverse:{sequence:"CTAGCCTTGTAGGTCAAGC"},  product_size:711, tm_diff:0.5, heterodimer_dG:-3.1 },
+    { pair_index:10, forward:{sequence:"ATGGAAGGATCATCAGGTGT"},  reverse:{sequence:"CTAGCCTTGTAGGTCAAGAT"}, product_size:711, tm_diff:0.3, heterodimer_dG:-2.9 },
+    { pair_index:14, forward:{sequence:"ATGGAAGGATCATCAGGTGTA"}, reverse:{sequence:"CTAGCCTTGTAGGTCAAGATA"},product_size:711, tm_diff:1.5, heterodimer_dG:-4.5 },
+    { pair_index:17, forward:{sequence:"ATGGAAGGATCATCAGGTGTAA"},reverse:{sequence:"CTAGCCTTGTAGGTCAAGATAG"},product_size:711,tm_diff:0.9, heterodimer_dG:-3.3 },
+    { pair_index:20, forward:{sequence:"ATGGAAGGATCATCAGGTGTAAG"},reverse:{sequence:"CTAGCCTTGTAGGTCAAGATAGC"},product_size:711,tm_diff:0.6,heterodimer_dG:-2.7},
+    { pair_index:23, forward:{sequence:"ATGGAAGGATCATCAGGTGTAAGG"},reverse:{sequence:"CTAGCCTTGTAGGTCAAGATAGCC"},product_size:711,tm_diff:1.1,heterodimer_dG:-4.0},
+    { pair_index:27, forward:{sequence:"ATGGAAGGATCATCAGGTGTAAGGA"},reverse:{sequence:"CTAGCCTTGTAGGTCAAGATAGCCT"},product_size:711,tm_diff:0.7,heterodimer_dG:-3.6},
+  ],
+  meta: {
+    counts: { pairs:23, blast_results:23, combined_ranking:253 },
+    e_status: { ok:true, resolved_target_pairs:23, pairs_with_nonempty_target_expr:23 },
+    scoring_status: { ok:true, n_pairs_in_d:23, n_pairs_in_e:23 }
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────────────────────
+let resultData  = null;
+let currentRows = [];
+let isRunning   = false;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Logging
+// ─────────────────────────────────────────────────────────────────────────────
+function log(msg, level = 'info') {
+  const el   = document.getElementById('log-output');
+  const line = document.createElement('span');
+  line.className = `log-${level}`;
+  line.textContent = msg + '\n';
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function clearLog() {
+  document.getElementById('log-output').innerHTML = '';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sequence cleaning
+// ─────────────────────────────────────────────────────────────────────────────
+function cleanSequence(raw) {
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  const seq   = (lines[0].startsWith('>') ? lines.slice(1) : lines)
+                  .join('')
+                  .toUpperCase()
+                  .replace(/[^ACGT]/g, '');
+  return seq;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Status badge
+// ─────────────────────────────────────────────────────────────────────────────
+function setStatus(text, cls = '') {
+  const badge = document.getElementById('status-badge');
+  badge.textContent = text;
+  badge.className   = cls;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Demo / Clear
+// ─────────────────────────────────────────────────────────────────────────────
+function onLoadDemo() {
+  document.getElementById('seq-input').value = DEMO_SEQUENCE;
+  log('[INFO] Demo sequence loaded.');
+}
+
+function onClear() {
+  document.getElementById('seq-input').value = '';
+  clearLog();
+  clearResults();
+  resultData  = null;
+  currentRows = [];
+  setStatus('Ready', '');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Run
+// ─────────────────────────────────────────────────────────────────────────────
+async function onRun() {
+  if (isRunning) return;
+
+  const rawSeq   = document.getElementById('seq-input').value.trim();
+  const sequence = cleanSequence(rawSeq);
+  const organism = document.getElementById('organism').value.trim() || 'Glycine max';
+  const topN     = parseInt(document.getElementById('top-n').value, 10);
+  const dummy    = document.getElementById('dummy-mode').checked;
+
+  // Validate
+  if (!sequence) { alert('Sequence is empty after cleaning. Please paste a DNA sequence.'); return; }
+  if (sequence.length < 50) { alert('Sequence is too short (minimum 50 bp after cleaning).'); return; }
+  if (!Number.isInteger(topN) || topN <= 0) { alert('Top N must be a positive integer.'); return; }
+
+  isRunning = true;
+  clearResults();
+  clearLog();
+  resultData  = null;
+  currentRows = [];
+
+  document.getElementById('run-btn').disabled = true;
+  setStatus('Running…', 'running');
+
+  log(`[INFO] PrimerScore started.`);
+  log(`[INFO] Sequence length: ${sequence.length}`);
+  log(`[INFO] Organism: ${organism}`);
+  log(`[INFO] Dummy BLAST: ${dummy}`);
+  log(`[INFO] Launching pipeline…`);
+
+  try {
+    let result;
+
+    // ── Try backend ──────────────────────────────────────────
+    try {
+      const resp = await fetch('/api/run', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ sequence, organism, top_n: topN, dummy_blast: dummy }),
+        signal:  AbortSignal.timeout(300_000)   // 5-min timeout for real BLAST
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+      result = await resp.json();
+      log(`[INFO] Calling pipeline_ABCDES(…)`);
+    } catch (fetchErr) {
+      // No backend running — fall through to mock (dummy only)
+      if (!dummy) {
+        throw new Error(
+          'No backend found at /api/run and dummy mode is OFF.\n\n' +
+          'Enable dummy BLAST mode to use the demo result,\nor start the PrimerScore backend server.'
+        );
+      }
+      log(`[WARN] Backend not reachable — using built-in demo result (dummy mode).`, 'warn');
+      await new Promise(r => setTimeout(r, 600));   // simulated delay
+      result = JSON.parse(JSON.stringify(MOCK_RESULT));
+    }
+    // ─────────────────────────────────────────────────────────
+
+    const meta          = result.meta         || {};
+    const counts        = meta.counts         || {};
+    const eStatus       = meta.e_status       || {};
+    const scoringStatus = meta.scoring_status || {};
+
+    log(`[INFO] Pipeline finished successfully.`);
+    log(`[INFO] Counts: pairs=${counts.pairs||0}, blast_results=${counts.blast_results||0}, combined_ranking=${counts.combined_ranking||0}`);
+    log(`[INFO] E status: ok=${eStatus.ok}, resolved_target_pairs=${eStatus.resolved_target_pairs||0}, pairs_with_nonempty_target_expr=${eStatus.pairs_with_nonempty_target_expr||0}`);
+    log(`[INFO] Scoring status: ok=${scoringStatus.ok}, n_pairs_in_d=${scoringStatus.n_pairs_in_d||0}, n_pairs_in_e=${scoringStatus.n_pairs_in_e||0}`);
+
+    resultData  = result;
+    currentRows = buildRows(result, topN);
+    fillTable(currentRows);
+    setStatus('Finished', 'finished');
+
+  } catch (err) {
+    log(`[ERROR] ${err.message}`, 'error');
+    setStatus('Failed', 'failed');
+    alert(`Run failed:\n\n${err.message}`);
+  } finally {
+    isRunning = false;
+    document.getElementById('run-btn').disabled = false;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Data helpers
+// ─────────────────────────────────────────────────────────────────────────────
+function extractSeq(obj) {
+  if (!obj) return '';
+  if (typeof obj === 'string') return obj;
+  return obj.sequence || obj.seq || obj.primer || '';
+}
+
+function findPairByIndex(arr, idx) {
+  if (!Array.isArray(arr)) return null;
+  return arr.find(p => p && p.pair_index === idx) ||
+         arr[idx] ||
+         null;
+}
+
+function buildRows(result, topN) {
+  const combined = (result.rankings || {}).combined_ranking || [];
+  const rows = [];
+
+  combined.slice(0, topN).forEach((item, i) => {
+    if (!item) return;
+    const pi   = item.pair_index;
+    const pair = findPairByIndex(result.pairs, pi) ||
+                 findPairByIndex(result.blast_results, pi) || {};
+
+    const fwd  = extractSeq(item.forward  || pair.forward)  || extractSeq((pair.pair_profile||{}).forward);
+    const rev  = extractSeq(item.reverse  || pair.reverse)  || extractSeq((pair.pair_profile||{}).reverse);
+    const size = item.product_size ?? pair.product_size ?? '';
+    const score = item.combined_score ?? item.score ?? '';
+    const warns = Array.isArray(item.warnings)
+      ? item.warnings.join('; ')
+      : (item.warnings || '');
+
+    rows.push({
+      rank:         i + 1,
+      pair_index:   pi,
+      forward:      fwd,
+      reverse:      rev,
+      product_size: size,
+      source:       item.source || item.tissue || '',
+      score:        score !== '' ? parseFloat(score).toFixed(4) : '',
+      label:        item.recommendation_label || item.final_recommendation || item.label || '',
+      warnings:     warns,
+      _raw:         item,
+      _pair:        pair,
+    });
+  });
+  return rows;
+}
+
+function shortSeq(seq, n = 18) {
+  if (!seq) return '';
+  return seq.length <= n ? seq : seq.slice(0, n) + '…';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Table
+// ─────────────────────────────────────────────────────────────────────────────
+function clearResults() {
+  document.getElementById('result-tbody').innerHTML =
+    `<tr><td colspan="9"><div id="empty-state">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+      </svg>
+      <p>Run PrimerScore to see results here.<br>Tip: use Load Demo to test the interface.</p>
+    </div></td></tr>`;
+  document.getElementById('result-hint').textContent = 'No results yet.';
+  document.getElementById('export-json-btn').disabled = true;
+  document.getElementById('export-csv-btn').disabled  = true;
+}
+
+function fillTable(rows) {
+  const tbody = document.getElementById('result-tbody');
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--muted)">Run completed — no ranking rows found.</td></tr>';
+    document.getElementById('result-hint').textContent = 'No rows returned.';
+    document.getElementById('export-json-btn').disabled = false;
+    return;
+  }
+
+  tbody.innerHTML = '';
+  rows.forEach(row => {
+    const tr = document.createElement('tr');
+    tr.title = 'Double-click to view full details';
+    tr.addEventListener('dblclick', () => openModal(row));
+
+    const labelCls = row.label === 'ok' ? 'label-ok' : row.label ? 'label-warn' : '';
+
+    tr.innerHTML = `
+      <td class="rank">${row.rank}</td>
+      <td>${row.pair_index}</td>
+      <td class="seq">${shortSeq(row.forward)}</td>
+      <td class="seq">${shortSeq(row.reverse)}</td>
+      <td>${row.product_size}</td>
+      <td>${row.source}</td>
+      <td class="score">${row.score}</td>
+      <td class="${labelCls}">${row.label}</td>
+      <td class="warnings" title="${row.warnings.replace(/"/g,'&quot;')}">${row.warnings}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('result-hint').textContent = `${rows.length} rows shown from combined ranking.`;
+  document.getElementById('export-json-btn').disabled = false;
+  document.getElementById('export-csv-btn').disabled  = false;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Detail modal
+// ─────────────────────────────────────────────────────────────────────────────
+function openModal(row) {
+  const pair = row._pair || {};
+  const fwd  = row.forward || extractSeq(pair.forward);
+  const rev  = row.reverse || extractSeq(pair.reverse);
+
+  document.getElementById('modal-title').textContent = `Pair Detail — rank ${row.rank}`;
+
+  const warns = row.warnings || '(none)';
+  const pretty = JSON.stringify({ ranking_item: row._raw, pair_data: pair }, null, 2);
+
+  document.getElementById('modal-body').innerHTML = `
+    <div class="detail-section">
+      <div class="detail-section-title">Summary</div>
+      <div class="detail-section-body">
+        <dl class="detail-grid">
+          <dt>Rank</dt>       <dd>${row.rank}</dd>
+          <dt>Pair Index</dt> <dd>${row.pair_index}</dd>
+          <dt>Forward</dt>
+          <dd>
+            <div class="seq-row">
+              <span class="seq-val" id="fwd-val">${fwd || '—'}</span>
+              <button class="copy-btn" onclick="copyText('fwd-val', this)">Copy</button>
+            </div>
+          </dd>
+          <dt>Reverse</dt>
+          <dd>
+            <div class="seq-row">
+              <span class="seq-val" id="rev-val">${rev || '—'}</span>
+              <button class="copy-btn" onclick="copyText('rev-val', this)">Copy</button>
+            </div>
+          </dd>
+          <dt>Product Size</dt> <dd>${row.product_size || '—'}</dd>
+          <dt>Source</dt>       <dd>${row.source || '—'}</dd>
+          <dt>Score</dt>        <dd><strong>${row.score || '—'}</strong></dd>
+          <dt>Label</dt>        <dd>${row.label || '—'}</dd>
+          ${pair.tm_diff        != null ? `<dt>Tm diff</dt><dd>${pair.tm_diff}</dd>` : ''}
+          ${pair.heterodimer_dG != null ? `<dt>Heterodimer ΔG</dt><dd>${pair.heterodimer_dG} kcal/mol</dd>` : ''}
+        </dl>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">Warnings</div>
+      <div class="detail-section-body" style="color:var(--warn);font-size:13px">${warns}</div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">Detail JSON</div>
+      <div class="detail-section-body">
+        <button class="copy-json-btn" onclick="copyRaw(this, \`${encodeURIComponent(pretty)}\`)">Copy JSON</button>
+        <div id="json-viewer">${escapeHtml(pretty)}</div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModalDirect();
+}
+function closeModalDirect() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModalDirect(); });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Clipboard helpers
+// ─────────────────────────────────────────────────────────────────────────────
+function copyText(elId, btn) {
+  const text = document.getElementById(elId).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+function copyRaw(btn, encoded) {
+  const text = decodeURIComponent(encoded);
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy JSON'; }, 1500);
+  });
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Export
+// ─────────────────────────────────────────────────────────────────────────────
+function onExportJSON() {
+  if (!resultData) return;
+  download(JSON.stringify(resultData, null, 2), 'primerscore_result.json', 'application/json');
+}
+
+function onExportCSV() {
+  if (!currentRows.length) return;
+  const fields = ['rank','pair_index','forward','reverse','product_size','source','score','label','warnings'];
+  const header = fields.join(',');
+  const body   = currentRows.map(r =>
+    fields.map(f => `"${String(r[f] ?? '').replace(/"/g,'""')}"`).join(',')
+  ).join('\n');
+  download(header + '\n' + body, 'primerscore_result.csv', 'text/csv;charset=utf-8;');
+}
+
+function download(content, filename, mime) {
+  const a  = document.createElement('a');
+  a.href   = URL.createObjectURL(new Blob([content], { type: mime }));
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+</script>
+</body>
+</html>
