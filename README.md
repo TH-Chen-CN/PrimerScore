@@ -198,7 +198,7 @@ Issues and pull requests are welcome.
 
 ---
 
-# PrimerScore
+# 中文版本
 
 **PCR 引物设计工具，集成 BLAST 特异性分析、表达量感知评估与综合打分排序。**
 
